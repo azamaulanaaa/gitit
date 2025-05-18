@@ -1,0 +1,4 @@
+#!/bin/sh
+export GIT_HTTP_EXPORT_ALL=true
+export GIT_PROJECT_ROOT=/git
+exec /usr/libexec/git-core/git-http-backend

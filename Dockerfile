@@ -13,7 +13,7 @@ WORKDIR /git/default.git
 RUN git init --bare --initial-branch=main && \
   git config http.receivepack true
 
-VOLUME ["/git/default.git/.git/hooks"]
+VOLUME ["/git/default.git/hooks"]
 
 # Copy cgi-bin
 COPY ./cgi-bin /www/cgi-bin

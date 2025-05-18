@@ -15,7 +15,7 @@ RUN mkdir -p /git/default.git && \
         touch /git/default.git/git-daemon-export-ok;  \
     fi
 
-VOLUME ["/git/default.git/hooks"]
+VOLUME ["/git/default.git/.git/hooks"]
 
 # Copy cgi-bin
 COPY ./cgi-bin /www/cgi-bin

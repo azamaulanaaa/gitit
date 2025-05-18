@@ -10,7 +10,7 @@ RUN mkdir -p /www /git
 # Create the default Git repository and initialize if it doesn't exist
 RUN mkdir -p /git/default.git && \
     if [ ! -d "/git/default.git/objects" ]; then \
-        git --git-dir=/git/default.git init --bare && \
+        git --git-dir=/git/default.git init --bare --initial-branch=main && \
         git --git-dir=/git/default.git config http.receivepack true && \
         touch /git/default.git/git-daemon-export-ok;  \
     fi

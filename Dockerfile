@@ -11,7 +11,8 @@ WORKDIR /git/default.git
 
 # Initialize git repository
 RUN git init --bare --initial-branch=main && \
-  git config http.receivepack true
+  git config http.receivepack true && \
+  git config advice.detachedHead false
 
 VOLUME ["/git/default.git/hooks"]
 

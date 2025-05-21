@@ -6,7 +6,8 @@ RUN apk add --no-cache \
   busybox-extras \
   git-daemon \
   openssh-client \
-  ca-certificates
+  ca-certificates \
+  sshpass
 
 # Create necessary directories
 RUN mkdir -p /www /git/default.git

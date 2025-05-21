@@ -5,7 +5,7 @@ FROM alpine:latest
 RUN apk add --no-cache \
   busybox-extras \
   git-daemon \
-  dropbear-dbclient
+  openssh-client
 
 # Create necessary directories
 RUN mkdir -p /www /git/default.git

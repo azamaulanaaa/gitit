@@ -136,6 +136,8 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
+          flavor: |
+            latest=false
           images: ${{ env.REGISTRY }}/${{ env.ORG_NAME }}/${{ github.event.repository.name }}
           tags: |
             type=semver,pattern=${{ matrix.variant }}-{{version}}

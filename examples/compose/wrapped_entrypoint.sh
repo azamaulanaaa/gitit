@@ -108,11 +108,11 @@ remote_start_containers() {
     local compose_profiles_args=""
 
     # Construct the --profile arguments if DEPLOY_PROFILE is set
-    if [ -n "\$DEPLOY_PROFILE" ]; then
-        for profile in \$DEPLOY_PROFILE; do
+    if [ -n "\$PROFILE" ]; then
+        for profile in \$PROFILE; do
             compose_profiles_args="\$compose_profiles_args --profile \"\$profile\""
         done
-        log_message "Using Docker Compose profiles: \$DEPLOY_PROFILE"
+        log_message "Using Docker Compose profiles: \$PROFILE"
     else
         log_message "No specific Docker Compose profiles set. Starting default services."
     fi

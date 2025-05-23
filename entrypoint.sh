@@ -14,7 +14,7 @@ if [ ! -d "$REPO_PATH/.git" ] || ! git -C "$REPO_PATH" rev-parse --is-inside-wor
     git init --initial-branch=main
     git config http.receivepack true
     git config advice.detachedHead false
-    git config receive.denyCurrentBranch ignore
+    git config receive.denyCurrentBranch updateInstead
     echo "Git repository initialized."
 else
     echo "Git repository already initialized in $REPO_PATH."

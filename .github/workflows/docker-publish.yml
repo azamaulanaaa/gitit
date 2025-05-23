@@ -21,6 +21,14 @@ jobs:
       # with sigstore/fulcio when running outside of PRs.
       id-token: write
 
+    strategy:
+      matrix:
+      include:
+        - prefix_tag: ""
+          dockerfile: Dockerfile
+        - prefix_tag: compose
+          dockerfile: examples/compose
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,30 +64,6 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          file: ${{ matrix.dockerfile }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Find Dockerfiles for variants
-        id: find_dockerfiles
-        run: |
-          # Find all Dockerfiles under examples/ and output them as a JSON array
-          DOCKERFILES=$(find examples -name "Dockerfile" -print0 | xargs -0 -I {} basename -s /Dockerfile {} | jq -R -s -c 'split("\n")[:-1]')
-          echo "dockerfiles=$DOCKERFILES" >> $GITHUB_OUTPUT
-
-      - name: Build and push variant images
-        if: steps.find_dockerfiles.outputs.dockerfiles != '[]'
-        run: |
-          # Loop through each variant found
-          for VARIANT in $(echo "${{ steps.find_dockerfiles.outputs.dockerfiles }}" | jq -r '.[]'); do
-            echo "Processing variant: $VARIANT"
-            VARIANT_PATH="examples/$VARIANT"
-            TAG="${VARIANT}-${{ steps.get_version.outputs.VERSION }}"
-
-            echo "Building image for ${VARIANT} with tag: ${TAG}"
-            docker buildx build \
-              --push \
-              --platform linux/amd64,linux/arm64 \
-              --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG} \
-              --file "${VARIANT_PATH}/Dockerfile" \
-              "${VARIANT_PATH}"
-          done

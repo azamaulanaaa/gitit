@@ -13,6 +13,7 @@ docker run --name gitit -d \
   -e SSH_PASSWORD=nerdctl \
   -e CONTAINER_CLI=nerdctl \
   -e BASE_DIR=/mnt/sda/selfhost \
+  -e PROFILE="cloudflared tinyproxy" \
   -p 8000:80 \
   ghcr.io/azamaulanaaa/gitit:compose
 
@@ -37,6 +38,8 @@ Let's break down what each part of the command does:
 - `-e CONTAINER_CLI=docker`: Sets the CONTAINER_CLI environment variable to docker. the options only `nerdctl` or `docker` This tells the application inside the container which container runtime CLI to use for its internal operations.
 
 - `-e BASE_DIR=/mnt/sda/selfhost`: Sets the BASE_DIR environment variable to `/mnt/sda/selfhost`. This path specifies where the application within the container should store its data or configurations on the host system.
+
+- `-e PROFILE="cloudflared tinyproxy"`: Sets the PROFILE environment variable. This variable allows users to deploy the compose file for specific profiles, with multiple profiles separated by spaces.
 
 - `-p 8000:80`: Maps port 8000 on your host machine to port 80 inside the container. This means you can access the application running on port 80 inside the container by navigating to `http://your-host-ip:8000` in your web browser.
 

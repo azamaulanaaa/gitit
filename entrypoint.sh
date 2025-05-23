@@ -3,8 +3,11 @@
 # Define the repository path
 REPO_PATH="/git/default.git"
 
-# Check if the repository is already initialized
-if [ ! -d "$REPO_PATH/.git" ]; then
+# Check if the directory is a valid Git repository
+# This command returns 0 if it's a valid work tree, non-zero otherwise.
+# We also check if the .git directory exists to handle cases where
+# the mount might be completely empty initially.
+if [ ! -d "$REPO_PATH/.git" ] || ! git -C "$REPO_PATH" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
     echo "Initializing Git repository in $REPO_PATH..."
     mkdir -p "$REPO_PATH"
     cd "$REPO_PATH"

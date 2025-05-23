@@ -12,14 +12,8 @@ RUN apk add --no-cache \
 # Create necessary directories
 RUN mkdir -p /www /git/default.git
 
-WORKDIR /git/default.git
-
-# Initialize git repository
-RUN git init --bare --initial-branch=main && \
-  git config http.receivepack true && \
-  git config advice.detachedHead false
-
-VOLUME ["/git/default.git/hooks"]
+# Copy the entrypoint script
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Copy cgi-bin
 COPY ./cgi-bin /www/cgi-bin
@@ -30,6 +24,9 @@ ENV GIT_PROJECT_ROOT=/git
 
 # Expose the port
 EXPOSE 80
+
+# Set the entrypoint to our script
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Start the Busybox httpd server
 CMD ["httpd", "-f", "-vv", "-p", "80", "-h", "/www"]

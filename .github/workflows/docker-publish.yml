@@ -1,28 +1,35 @@
-name: Release Docker Image
+name: Build Container Images
+
+# This workflow will run on:
+# 1. Pushes to the 'main' branch (for 'latest' tag).
+# 2. Pushes of Git tags that match the pattern 'v*.*.*' (e.g., v1.0.0, v2.1.5).
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch: # Allows manual triggering of the workflow
+      - 'v*.*.*'
 
+# Define environment variables that will be used across jobs.
 env:
-  # Use docker.io for Docker Hub if empty
+  # REGISTRY: The container registry to push images to.
+  #   - For GitHub Container Registry (GHCR), use 'ghcr.io'.
+  #   - For Docker Hub, use 'docker.io'.
   REGISTRY: ghcr.io
-  # github.repository as <account>/<repo>
-  IMAGE_NAME: ${{ github.repository }}
+
+  # ORG_NAME: The organization or user name under which the images will be stored.
+  #   - For GHCR, this is typically your GitHub username or organization name.
+  #   - For Docker Hub, this is your Docker Hub username.
+  ORG_NAME: ${{ github.repository_owner }}
 
 jobs:
-  image-build:
+  # This job builds and pushes the main container image.
+  build_main_image:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
-      id-token: write
+      contents: read    # Required to checkout the repository.
+      packages: write   # Required to push images to GitHub Container Registry.
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up QEMU
@@ -31,55 +38,118 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
       - name: Set up Docker Buildx
+        # Buildx is a Docker CLI plugin for extended build capabilities, including multi-platform builds.
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
+      - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
+          username: ${{ github.actor }} # Uses the GitHub actor (username) for login.
+          # For GHCR, use GITHUB_TOKEN which is automatically provided by GitHub Actions.
+          # For Docker Hub, you would typically use a personal access token stored as a repository secret (e.g., ${{ secrets.DOCKER_HUB_TOKEN }}).
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata
+      - name: Container metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/gitit
+          images: ${{ env.REGISTRY }}/${{ env.ORG_NAME }}/${{ github.event.repository.name }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - name: Build and push
+      - name: Build and push main image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          context: . # The build context is the root of your repository.
+          push: true # Set to 'true' to push the image to the registry.
           labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64,linux/arm64 # Specify target platforms for multi-architecture builds.
 
-      - name: Find Dockerfiles for variants
-        id: find_dockerfiles
+  prepare_build_variant:
+    runs-on: ubuntu-latest
+    # Outputs from this job will be available to subsequent jobs.
+    outputs:
+      variants: ${{ steps.find_variants.outputs.VARIANTS }} # JSON array of variant names
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4 # Action to check out your repository code.
+
+      - name: Find example variants
+        id: find_variants
         run: |
-          # Find all Dockerfiles under examples/ and output them as a JSON array
-          DOCKERFILES=$(find examples -name "Dockerfile" -print0 | xargs -0 -I {} basename -s /Dockerfile {} | jq -R -s -c 'split("\n")[:-1]')
-          echo "dockerfiles=$DOCKERFILES" >> $GITHUB_OUTPUT
+          # Find all subdirectories directly under 'examples/' that contain a 'Dockerfile'.
+          # -maxdepth 2 -mindepth 2: Ensures we look two levels deep (e.g., 'examples/variant_name/Dockerfile').
+          # -type f -name "Dockerfile": Filters for files named 'Dockerfile'.
+          # -printf '%h\n': Prints the directory containing the Dockerfile (e.g., 'examples/variant_name').
+          # xargs -n1 basename: Extracts just the variant name (e.g., 'variant_name').
+          # sort -u: Sorts and removes duplicate variant names.
+          # jq -R . | jq -s .: Converts newline-separated strings into a single JSON array.
+          VARIANTS=$(find examples -maxdepth 2 -mindepth 2 -type f -name "Dockerfile" -printf '%h\n' | xargs -n1 basename | sort -u | jq -R . | jq -s -c .)
+          echo "VARIANTS=$VARIANTS" >> "$GITHUB_OUTPUT"
+          echo "Found variants: $VARIANTS"
 
-      - name: Build and push variant images
-        if: steps.find_dockerfiles.outputs.dockerfiles != '[]'
-        run: |
-          # Loop through each variant found
-          for VARIANT in $(echo "${{ steps.find_dockerfiles.outputs.dockerfiles }}" | jq -r '.[]'); do
-            echo "Processing variant: $VARIANT"
-            VARIANT_PATH="examples/$VARIANT"
-            TAG="${VARIANT}-${{ steps.get_version.outputs.VERSION }}"
+  # This job builds and pushes each variant container image.
+  build_variant_images:
+    needs: [build_main_image, prepare_build_variant]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    # This job will only run if a versioned tag was detected AND variants were found by the 'prepare_build' job.
+    if: ${{ needs.prepare_build_variant.outputs.variants != '[]' }}
 
-            echo "Building image for ${VARIANT} with tag: ${TAG}"
-            docker buildx build \
-              --push \
-              --platform linux/amd64,linux/arm64 \
-              --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG} \
-              --file "${VARIANT_PATH}/Dockerfile" \
-              "${VARIANT_PATH}"
-          done
+    # Use a matrix strategy to build each variant in parallel.
+    strategy:
+      matrix:
+        # 'variant' will be each item from the JSON array output by 'prepare_build'.
+        variant: ${{ fromJson(needs.prepare_build_variant.outputs.variants) }}
+      fail-fast: false # Set to 'false' to allow other variants to build even if one fails.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Set up Docker Buildx
+        # Buildx is a Docker CLI plugin for extended build capabilities, including multi-platform builds.
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }} # Uses the GitHub actor (username) for login.
+          # For GHCR, use GITHUB_TOKEN which is automatically provided by GitHub Actions.
+          # For Docker Hub, you would typically use a personal access token stored as a repository secret (e.g., ${{ secrets.DOCKER_HUB_TOKEN }}).
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Container metadata for ${{ matrix.variant }}
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.ORG_NAME }}/${{ github.event.repository.name }}
+          tags: |
+            type=semver,pattern=${{ matrix.variant }}-{{version}}
+            type=semver,pattern=${{ matrix.variant }}-{{major}}
+            type=semver,pattern=${{ matrix.variant }}-{{major}}.{{minor}}
+            type=raw,value=${{ matrix.variant}}
+
+      - name: Build and push variant image for ${{ matrix.variant }}
+        uses: docker/build-push-action@v6
+        with:
+          # The build context for the variant is its specific directory under 'examples/'.
+          context: ./examples/${{ matrix.variant }}
+          push: true
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64,linux/arm64
+

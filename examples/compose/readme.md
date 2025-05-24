@@ -32,19 +32,19 @@ Let's break down what each part of the command does:
 
 - `--add-host host.docker.internal:host-gateway`: This adds an entry to the container's `/etc/hosts` file, allowing the container to resolve host.docker.internal to the IP address of the host machine. This is useful for services within the container that need to communicate with services running directly on the host.
 
-- `-e PROFILE="cloudflared tinyproxy"`: Sets the PROFILE environment variable. This variable allows users to deploy the compose file for specific profiles, with multiple profiles separated by spaces.
+- `-e PROFILE="cloudflared tinyproxy"`: Sets the `PROFILE` environment variable. This variable allows users to deploy the compose file for specific profiles, with multiple profiles separated by spaces.
 
-- `-e SSH_USER=docker`: Sets the SSH_USER environment variable inside the container to docker. This variable is likely used by the application within the container for SSH operations.
+- `-e SSH_USER=docker`: Sets the `SSH_USER` environment variable inside the container to docker. This variable is likely used by the application within the container for SSH operations.
 
-- `-e SSH_PASSWORD=docker`: Sets the SSH_PASSWORD environment variable inside the container to docker. Similar to SSH_USER, this is used for SSH authentication.
+- `-e SSH_PASSWORD=docker`: Sets the `SSH_PASSWORD` environment variable inside the container to docker. Similar to `SSH_USER`, this is used for SSH authentication.
 
-- `-e CONTAINER_CLI=docker`: Sets the CONTAINER_CLI environment variable to docker. the options only `nerdctl` or `docker` This tells the application inside the container which container runtime CLI to use for its internal operations.
+- `-e CONTAINER_CLI=docker`: Sets the `CONTAINER_CLI` environment variable to docker. the options only `nerdctl` or `docker` This tells the application inside the container which container runtime CLI to use for its internal operations.
 
-- `-e BASE_DIR=/mnt/sda/selfhost`: Sets the BASE_DIR environment variable to `/mnt/sda/selfhost`. This path specifies where the application within the container should store its data or configurations on the host system. It is critically important that this host directory (`/mnt/sda/selfhost`) is mounted to `/git/default.git` inside the container using the `-v` flag. This ensures that the Git repository data is persisted correctly and is accessible to the gitit application.
+- `-e BASE_DIR=/mnt/sda/selfhost`: Sets the `BASE_DIR` environment variable to `/mnt/sda/selfhost`. This path specifies where the application within the container should store its data or configurations on the host system. It is critically important that this host directory (`/mnt/sda/selfhost`) is mounted to `/git/default.git` inside the container using the `-v` flag. This ensures that the Git repository data is persisted correctly and is accessible to the gitit application.
 
-- `-v /mnt/sda/selfhost:/git/default.git`: This creates a bind mount. It mounts the `/mnt/sda/selfhost` directory from your host machine into the `/git/default.git` directory inside the container. This is crucial for persisting your Git repository data outside the container, ensuring that your data is not lost if the container is removed or recreated. This mount point must correspond to the BASE_DIR set in the environment variables, as the application expects to find its data at `/git/default.git` within the container
+- `-v /mnt/sda/selfhost:/git/default.git`: This creates a bind mount. It mounts the `/mnt/sda/selfhost` directory from your host machine into the `/git/default.git` directory inside the container. This is crucial for persisting your Git repository data outside the container, ensuring that your data is not lost if the container is removed or recreated. This mount point must correspond to the `BASE_DIR` set in the environment variables, as the application expects to find its data at `/git/default.git` within the container
 
-- `-p 8000:80`: Maps port 8000 on your host machine to port 80 inside the container. This means you can access the application running on port 80 inside the container by navigating to `http://your-host-ip:8000` in your web browser.
+- `-p 8000:80`: Maps port `8000` on your host machine to port `80` inside the container. This means you can access the application running on port `80` inside the container by navigating to `http://your-host-ip:8000` in your web browser.
 
 - `ghcr.io/azamaulanaaa/gitit:compose` : This is the name of the Docker image you are deploying.
 

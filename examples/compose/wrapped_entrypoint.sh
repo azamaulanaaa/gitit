@@ -99,7 +99,7 @@ remote_exec() {
 # Function to stop and remove existing containers on the remote server (host)
 remote_stop_containers() {
     log_message "Stopping and removing existing containers on \$SSH_HOST using \$CONTAINER_CLI..."
-    remote_exec "cd \"\$BASE_DIR\" && \$CONTAINER_CLI compose --profile '*' down"
+    remote_exec "cd \"\$BASE_DIR\" && \$CONTAINER_CLI compose down --remove-orphans"
 }
 
 # Function to start new containers on the remote server (host)

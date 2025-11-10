@@ -1,7 +1,7 @@
 :80 {
   root * /git
 
-  @git_backend path_regexp git_path ^/cgi-bin/git/([^/]+)/?(info/refs|git-upload-pack|git-receive-pack)$
+  @git_backend path_regexp git_path ^/([^/]+)\.git/?(info/refs|git-upload-pack|git-receive-pack)$
 
   handle @git_backend {
     rewrite * /{re.git_path.1}/{re.git_path.2}

@@ -32,7 +32,7 @@ To deploy Gitit, use the following docker run command:
 ```sh
 docker run -d \
     --name gitit \
-    -v hooks:/git/default.git/.git/hooks:ro \
+    -v hooks:/git/default/.git/hooks:ro \
     -p 8000:80 \
     ghcr.io/azamaulanaaa/gitit
 ```
@@ -44,15 +44,15 @@ docker run -d \
 - `--name gitit`: Assigns the name gitit to your container, making it easier to
   reference.
 
-- `-v hooks:/git/default.git/.git/hooks:ro`: This is a crucial volume mount.
+- `-v hooks:/git/default/.git/hooks:ro`: This is a crucial volume mount.
 
   - `hooks`: This refers to a Docker named volume (or a host directory if you
     specify a full path like `/path/to/your/hooks`). This volume should contain
     your custom Git hooks (e.g., post-receive, pre-receive) that you want to
     execute on the server.
 
-  - `/git/default.git/.git/hooks`: This is the target directory inside the
-    container where Git expects to find its hooks.
+  - `/git/default/.git/hooks`: This is the target directory inside the container
+    where Git expects to find its hooks.
 
   - `:ro`: Mounts the volume as read-only, preventing the container from
     modifying your hook scripts directly.

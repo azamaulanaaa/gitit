@@ -1,0 +1,18 @@
+:80 {
+  root * /git
+
+  @git_backend path_regexp git_path ^/cgi-bin/git/([^/]+)/?(info/refs|git-upload-pack|git-receive-pack)$
+
+  handle @git_backend {
+    rewrite * /{re.git_path.1}/{re.git_path.2}
+
+    cgi * /usr/libexec/git-core/git-http-backend {
+      env GIT_HTTP_EXPORT_ALL=true GIT_PROJECT_ROOT=/git
+    }
+  }
+
+  file_server {
+    hide .gitignore .git .git/
+  }
+}
+

@@ -85,7 +85,7 @@ Once the container is running, you can access the gitit-compose application by
 opening your web browser and navigating to:
 
 ```sh
-git clone http://<Your_Host_IP_Address>:8000/cgi-bin/git/default.git
+git clone http://<Your_Host_IP_Address>:8000/default.git
 ```
 
 Replace <Your_Host_IP_Address> with the actual IP address of the machine where

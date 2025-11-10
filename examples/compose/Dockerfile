@@ -1,7 +1,15 @@
 FROM ghcr.io/azamaulanaaa/gitit:latest
 
-COPY ./wrapped_entrypoint.sh /usr/local/bin/wrapped_entrypoint.sh
+RUN apk add --no-cache \
+  openssh-client \
+  ca-certificates \
+  sshpass
 
+COPY wrapped_entrypoint.sh /usr/local/bin/wrapped_entrypoint.sh
+RUN chmod +x /usr/local/bin/wrapped_entrypoint.sh
+
+# Set the entrypoint to our script
 ENTRYPOINT ["/usr/local/bin/wrapped_entrypoint.sh"]
 
-CMD ["httpd", "-f", "-vv", "-p", "80", "-h", "/www"]
+# Start the server
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

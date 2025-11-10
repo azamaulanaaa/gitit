@@ -2,12 +2,12 @@
 
 # Create the directory for the default Git repository's hooks if it doesn't already exist.
 # The '-p' flag ensures that parent directories are also created as needed.
-mkdir -p /git/default.git/.git/hooks
+mkdir -p /git/default/.git/hooks
 
 # Redirect the following lines (up to 'EOF') into a file named 'post-receive'.
 # This file will become a Git hook script that executes after a successful push to the repository.
 # The 'cat >' command is used to create or overwrite the file.
-cat > /git/default.git/.git/hooks/post-receive << EOF
+cat > /git/default/.git/hooks/post-receive << EOF
 #!/bin/sh
 # ------------------------------------------------------------------------------
 # Script: post-receive

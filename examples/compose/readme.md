@@ -7,7 +7,7 @@ only container you need to do CI/CD for your compose file
 To deploy the gitit-compose image, use the following nerdctl run command:
 
 ```sh
-docker run --name gitit -d \
+nerdctl run --name gitit -d \
   --add-host host.docker.internal:host-gateway \
   -e PROFILE="cloudflared tinyproxy" \
   -e SSH_USER=nerdctl \
@@ -23,7 +23,7 @@ docker run --name gitit -d \
 
 Let's break down what each part of the command does:
 
-- `docker run`: This is the base command to run a Docker image.
+- `nerdctl run`: This is the base command to run a Docker image.
 
 - `--name gitit`: Assigns the name `gitit` to your running container. This makes
   it easier to refer to and manage the container later.
@@ -41,15 +41,15 @@ Let's break down what each part of the command does:
   This variable allows users to deploy the compose file for specific profiles,
   with multiple profiles separated by spaces.
 
-- `-e SSH_USER=docker`: Sets the `SSH_USER` environment variable inside the
+- `-e SSH_USER=nerdctl`: Sets the `SSH_USER` environment variable inside the
   container to docker. This variable is likely used by the application within
   the container for SSH operations.
 
-- `-e SSH_PASSWORD=docker`: Sets the `SSH_PASSWORD` environment variable inside
+- `-e SSH_PASSWORD=nerdctl`: Sets the `SSH_PASSWORD` environment variable inside
   the container to docker. Similar to `SSH_USER`, this is used for SSH
   authentication.
 
-- `-e CONTAINER_CLI=docker`: Sets the `CONTAINER_CLI` environment variable to
+- `-e CONTAINER_CLI=nerdctl`: Sets the `CONTAINER_CLI` environment variable to
   docker. the options only `nerdctl` or `docker` This tells the application
   inside the container which container runtime CLI to use for its internal
   operations.

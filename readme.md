@@ -73,7 +73,7 @@ http://<Your_Host_IP_Address>:8000/cgi-bin/git/default.git.
 To clone the repository:
 
 ```sh
-git clone http://<Your_Host_IP_Address>:8000/cgi-bin/git/default.git
+git clone http://<Your_Host_IP_Address>:8000/default.git
 ```
 
 Replace `<Your_Host_IP_Address>` with the actual IP address or hostname of the
@@ -84,7 +84,7 @@ machine running the Docker container.
 To add Gitit as a remote and push your changes:
 
 ```sh
-git remote add gitit http://<Your_Host_IP_Address>:8000/cgi-bin/git/default.git
+git remote add gitit http://<Your_Host_IP_Address>:8000/default.git
 git push gitit main # Or your desired branch, e.g., 'master'
 ```
 

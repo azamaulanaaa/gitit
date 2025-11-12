@@ -14,7 +14,7 @@ nerdctl run --name gitit -d \
   -e SSH_PASSWORD=nerdctl \
   -e CONTAINER_CLI=nerdctl \
   -e BASE_DIR=/mnt/sda/selfhost \
-  -v /mnt/sda/selfhost:/git/default.git\
+  -v /mnt/sda/selfhost:/git/default\
   -p 8000:80 \
   ghcr.io/azamaulanaaa/gitit:compose
 ```
@@ -58,18 +58,17 @@ Let's break down what each part of the command does:
   `/mnt/sda/selfhost`. This path specifies where the application within the
   container should store its data or configurations on the host system. It is
   critically important that this host directory (`/mnt/sda/selfhost`) is mounted
-  to `/git/default.git` inside the container using the `-v` flag. This ensures
-  that the Git repository data is persisted correctly and is accessible to the
-  gitit application.
+  to `/git/default` inside the container using the `-v` flag. This ensures that
+  the Git repository data is persisted correctly and is accessible to the gitit
+  application.
 
-- `-v /mnt/sda/selfhost:/git/default.git`: This creates a bind mount. It mounts
-  the `/mnt/sda/selfhost` directory from your host machine into the
-  `/git/default.git` directory inside the container. This is crucial for
-  persisting your Git repository data outside the container, ensuring that your
-  data is not lost if the container is removed or recreated. This mount point
-  must correspond to the `BASE_DIR` set in the environment variables, as the
-  application expects to find its data at `/git/default.git` within the
-  container
+- `-v /mnt/sda/selfhost:/git/default`: This creates a bind mount. It mounts the
+  `/mnt/sda/selfhost` directory from your host machine into the `/git/default`
+  directory inside the container. This is crucial for persisting your Git
+  repository data outside the container, ensuring that your data is not lost if
+  the container is removed or recreated. This mount point must correspond to the
+  `BASE_DIR` set in the environment variables, as the application expects to
+  find its data at `/git/default` within the container
 
 - `-p 8000:80`: Maps port `8000` on your host machine to port `80` inside the
   container. This means you can access the application running on port `80`

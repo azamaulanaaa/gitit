@@ -5,6 +5,9 @@ RUN apk add --no-cache \
   ca-certificates \
   sshpass
 
+COPY ./hooks /hooks
+RUN chmod +x /hooks/*
+
 COPY wrapped_entrypoint.sh /usr/local/bin/wrapped_entrypoint.sh
 RUN chmod +x /usr/local/bin/wrapped_entrypoint.sh
 

@@ -47,6 +47,12 @@ if [ "\$CONTAINER_CLI" != "nerdctl" ] && [ "\$CONTAINER_CLI" != "docker" ]; then
     exit 1
 fi
 
+REPO_PATH=$(git rev-parse --absolute-git-dir)
+
+# Extract just the directory name
+REPO_DIR_NAME=$(basename "$REPO_PATH")
+
+REMOTE_REPO_PATH=${BASE_DIR}\$REPO_DIR_NAME
 
 # SSH command prefix using sshpass.
 # Directly using the environment variables (and the hardcoded SSH_HOST).
@@ -89,7 +95,7 @@ remote_exec() {
 # Function to stop and remove existing containers on the remote server (host)
 remote_stop_containers() {
     log_message "Stopping and removing existing containers on \$SSH_HOST using \$CONTAINER_CLI..."
-    remote_exec "cd \"\$BASE_DIR\" && \$CONTAINER_CLI compose down --remove-orphans"
+    remote_exec "cd \"\$REMOTE_REPO_PATH\" && \$CONTAINER_CLI compose down --remove-orphans"
 }
 
 # Function to start new containers on the remote server (host)
@@ -107,7 +113,7 @@ remote_start_containers() {
         log_message "No specific Docker Compose profiles set. Starting default services."
     fi
 
-    local compose_up_command="cd \"\$BASE_DIR\" && \$CONTAINER_CLI compose \$compose_profiles_args up -d"
+    local compose_up_command="cd \"\$REMOTE_REPO_PATH\" && \$CONTAINER_CLI compose \$compose_profiles_args up -d"
     remote_exec "\$compose_up_command"
 }
 

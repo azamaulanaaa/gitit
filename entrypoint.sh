@@ -9,8 +9,7 @@ find "${REPO_ROOT}" -mindepth 1 -maxdepth 1 -type d | while read REPO_PATH; do
     REPO_NAME=$(basename "${REPO_PATH}")
     
     # Check 1: Is the directory already an independent Git repository?
-    # We check for the existence of the .git folder/file directly inside the path.
-    if git -C "$REPO_PATH" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+    if git -C "$REPO_PATH" rev-parse --show-toplevel > /dev/null 2>&1; then
         echo "✅ Repo '${REPO_NAME}' already a git repository. Skipping init."
         continue
     fi

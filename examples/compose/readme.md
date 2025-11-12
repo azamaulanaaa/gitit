@@ -13,8 +13,8 @@ nerdctl run --name gitit -d \
   -e SSH_USER=nerdctl \
   -e SSH_PASSWORD=nerdctl \
   -e CONTAINER_CLI=nerdctl \
-  -e BASE_DIR=/mnt/sda/selfhost \
-  -v /mnt/sda/selfhost:/git/default\
+  -e BASE_DIR=/mnt/sda \
+  -v /mnt/sda/selfhost:/git/selfhost\
   -p 8000:80 \
   ghcr.io/azamaulanaaa/gitit:compose
 ```
@@ -54,21 +54,25 @@ Let's break down what each part of the command does:
   inside the container which container runtime CLI to use for its internal
   operations.
 
-- `-e BASE_DIR=/mnt/sda/selfhost`: Sets the `BASE_DIR` environment variable to
-  `/mnt/sda/selfhost`. This path specifies where the application within the
-  container should store its data or configurations on the host system. It is
-  critically important that this host directory (`/mnt/sda/selfhost`) is mounted
-  to `/git/default` inside the container using the `-v` flag. This ensures that
-  the Git repository data is persisted correctly and is accessible to the gitit
-  application.
+- `-e BASE_DIR=/mnt/sda`: Sets the host directory where all repositories will be
+  stored. This directory (`/mnt/sda`) is the parent of all Git repositories. The
+  repository's local directory name on the host (e.g., `selfhost`) must match
+  its remote name as used by the application inside the container. This means
+  the path `/mnt/sda/selfhost` on the host must be mounted to a corresponding
+  location inside the container, typically `/git/selfhost` (or similar,
+  depending on the application's configuration), to ensure data persistence and
+  correct access.
 
-- `-v /mnt/sda/selfhost:/git/default`: This creates a bind mount. It mounts the
-  `/mnt/sda/selfhost` directory from your host machine into the `/git/default`
+- `-v /mnt/sda/selfhost:/git/selfhost`: This creates a bind mount. It mounts the
+  `/mnt/sda/selfhost` directory from your host machine into the `/git/selfhost`
   directory inside the container. This is crucial for persisting your Git
   repository data outside the container, ensuring that your data is not lost if
-  the container is removed or recreated. This mount point must correspond to the
-  `BASE_DIR` set in the environment variables, as the application expects to
-  find its data at `/git/default` within the container
+  the container is removed or recreated. The host directory `/mnt/sda/selfhost`
+  must be a subdirectory of the host's `BASE_DIR` (e.g., if `BASE_DIR` is set to
+  `/mnt/sda`, the host path is `/mnt/sda/selfhost`). Furthermore, the repository
+  name (`selfhost`) must match on both the host and container paths. The
+  application expects to find this specific repository's data at `/git/selfhost`
+  within the container.
 
 - `-p 8000:80`: Maps port `8000` on your host machine to port `80` inside the
   container. This means you can access the application running on port `80`
@@ -84,7 +88,7 @@ Once the container is running, you can access the gitit-compose application by
 opening your web browser and navigating to:
 
 ```sh
-git clone http://<Your_Host_IP_Address>:8000/default.git
+git clone http://<Your_Host_IP_Address>:8000/selfhost.git
 ```
 
 Replace <Your_Host_IP_Address> with the actual IP address of the machine where

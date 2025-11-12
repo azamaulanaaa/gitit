@@ -6,7 +6,8 @@ name: Build Container Images
 on:
   push:
     tags:
-      - 'v*.*.*'
+      # This pattern matches v1.0.0, v1.0.0-rc1, v1.0.0-beta.2, etc.
+      - "v[0-9]+.[0-9]+.[0-9]+*"
 
 # Define environment variables that will be used across jobs.
 env:

@@ -8,6 +8,7 @@
 
     cgi * /usr/libexec/git-core/git-http-backend {
       env GIT_HTTP_EXPORT_ALL=true GIT_PROJECT_ROOT=/git
+      pass_all_env
     }
   }
 

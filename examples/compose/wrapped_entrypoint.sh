@@ -1,27 +1,36 @@
 #!/bin/sh
 
+# --- 1. Execute the Base Image's Setup Logic ---
+
+/usr/local/bin/setup.sh
+
+# --- 2. Link Hooks to Bare Repositories ---
+
 HOOKS_SOURCE="/hooks"
-# The path where all repositories are expected to reside (as set by the volume mount)
 REPO_ROOT="/git"
+USER_TO_RUN_AS="git"
 
-# Find only top-level directories under REPO_ROOT
-find "${REPO_ROOT}" -mindepth 1 -maxdepth 1 -type d | while read REPO_PATH; do
+echo "Linking custom hooks to bare repositories..."
 
-    REPO_NAME=$(basename "${REPO_PATH}")
+# Execute the hook linking logic as the non-root user 'git'
+su - "$USER_TO_RUN_AS" -c "
+    echo 'Checking and linking hooks in ${REPO_ROOT}...'
+    
+    find \"${REPO_ROOT}\" -mindepth 1 -maxdepth 1 -type d | while read REPO_PATH; do
+        REPO_NAME=\$(basename \"\$REPO_PATH\")
+        
+        # For a BARE repository, the hooks directory is located directly inside the repo root.
+        HOOKS_DESTINATION=\"\$REPO_PATH/hooks\"
+        
+        echo \"Copying custom hooks to '\$REPO_NAME' (bare repo)...\"
+        
+        # Copy the hooks from the source folder to the bare repository's hooks directory.
+        cp \"${HOOKS_SOURCE}\"/* \"\$HOOKS_DESTINATION\"/
+        
+        echo \"Hook setup complete for '\$REPO_NAME'\"
+    done
+"
 
-    if ! git -C "$REPO_PATH" rev-parse --show-toplevel > /dev/null 2>&1; then
-        echo "⚠️ Directory '${REPO_NAME}' is NOT a Git repo Skipping."
-        continue
-    fi
+# --- 3. START DROPBEAR (Execute the final CMD) ---
 
-    HOOKS_DESTINATION="${REPO_PATH}/.git/hooks"
-
-    echo "Copying custom hooks to ${REPO_NAME}..."
-    cp -n "$HOOKS_SOURCE"/* "$HOOKS_DESTINATION"/ # -n means no-clobber (don't overwrite existing files)
-
-done
-
-# Execute the original entrypoint.sh.
-# This runs it as a separate process.
-# We pass all arguments to it.
-/usr/local/bin/entrypoint.sh "$@"
+exec "$@"

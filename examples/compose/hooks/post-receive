@@ -1,66 +1,48 @@
 #!/bin/sh
 # ------------------------------------------------------------------------------
-# Script: post-receive
-# Description: This Git server-side hook runs inside the 'gitit' container.
-#        It's triggered after a successful 'git push' to the non-bare
-#        repository (whose working directory is volume-mounted to the host).
-#        This hook then uses sshpass to connect back to the host machine
-#        and redeploy the application using the specified container CLI
-#        (nerdctl or docker) and Docker Compose.
+# Script: post-receive 
+# Description: This hook is triggered after a successful 'git push' to a BARE 
+#              repository. It executes a shallow clone of the latest code onto 
+#              the remote host using SSH and then triggers a deployment restart.
 # ------------------------------------------------------------------------------
 
 # --- Configuration ---
 # Target branch for deployments.
 TARGET_BRANCH="refs/heads/main"
 
-# Log file path within the gitit container. Ensure this path is writable.
+# Log file path within the container.
 LOG_FILE="/var/log/git-deploy.log"
 
-# Remote Server Configuration (This is the host machine where the volumes are mounted)
-# IMPORTANT: Ensure 'sshpass' is installed inside the 'gitit' container.
-
-# SSH Host: Hardcoded as requested. This value will be used directly.
+# Remote Server Configuration (Host machine where deployment occurs)
 SSH_HOST="host.docker.internal"
 
-# Other sensitive and dynamic configurations (SSH_USER, SSH_PASSWORD, BASE_DIR, CONTAINER_CLI)
-# MUST be provided as environment variables to the container running this hook.
-
-# Validate essential environment variables are set. If any are missing, the script will exit.
-if [ -z "\$SSH_USER" ]; then
-    echo "Error: SSH_USER environment variable is not set. This is required for remote SSH connection." >&2
+# Validate essential environment variables are set.
+if [ -z "\$SSH_USER" ]; then echo "Error: SSH_USER not set." >&2; exit 1; fi
+if [ -z "\$SSH_PASSWORD" ]; then echo "Error: SSH_PASSWORD not set." >&2; exit 1; fi
+if [ -z "\$REMOTE_DEPLOY_BASE" ]; then
+    echo "Error: REMOTE_DEPLOY_BASE environment variable is not set. This must point to the root deployment directory on the remote host (e.g., /opt/apps)." >&2
     exit 1
 fi
-if [ -z "\$SSH_PASSWORD" ]; then
-    echo "Error: SSH_PASSWORD environment variable is not set. WARNING: Hardcoding passwords is a security risk. Use environment variables or a secrets management system." >&2
-    exit 1
-fi
-if [ -z "\$BASE_DIR" ]; then
-    echo "Error: BASE_DIR environment variable is not set. This must point to your application's directory on the host." >&2
-    exit 1
-fi
-if [ -z "\$CONTAINER_CLI" ]; then
-    echo "Error: CONTAINER_CLI environment variable is not set. Please set it to 'nerdctl' or 'docker'." >&2
-    exit 1
-fi
+if [ -z "\$CONTAINER_CLI" ]; then echo "Error: CONTAINER_CLI not set." >&2; exit 1; fi
 if [ "\$CONTAINER_CLI" != "nerdctl" ] && [ "\$CONTAINER_CLI" != "docker" ]; then
-    echo "Error: Invalid value for CONTAINER_CLI. Must be 'nerdctl' or 'docker'." >&2
-    exit 1
-fi
+    echo "Error: Invalid value for CONTAINER_CLI." >&2; exit 1; fi
 
+# Get the name of the bare repository and remove the .git suffix
 REPO_PATH=$(git rev-parse --absolute-git-dir)
+REPO_DIR_NAME=$(basename "$REPO_PATH" .git)
 
-# Extract just the directory name
-REPO_DIR_NAME=$(basename "$REPO_PATH")
+# The final path on the remote host where the code will be cloned.
+# Example: \$REMOTE_DEPLOY_BASE/myproject (e.g., /deploy/myproject)
+REMOTE_REPO_PATH="\${REMOTE_DEPLOY_BASE}/\${REPO_DIR_NAME}"
 
-REMOTE_REPO_PATH=${BASE_DIR}\$REPO_DIR_NAME
+# The source path for the clone is the container's *own* bare repo path.
+CLONE_SOURCE_PATH="\$REPO_PATH"
 
 # SSH command prefix using sshpass.
-# Directly using the environment variables (and the hardcoded SSH_HOST).
 SSH_COMMAND_PREFIX="sshpass -p \"\$SSH_PASSWORD\" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \"\$SSH_USER@\$SSH_HOST\""
 
-# --- Utility Functions ---
+# --- Utility Functions (unchanged) ---
 
-# Function to log messages with a timestamp
 log_message() {
     local message="\$1"
     local timestamp=\$(date +"%Y-%m-%d %H:%M:%S %Z")
@@ -70,21 +52,17 @@ log_message() {
     fi
 }
 
-# Function to handle errors and exit
 handle_error() {
     local message="\$1"
     log_message "Error: \$message"
     exit 1
 }
 
-# Function to execute a command on the remote server (the host machine) via SSH
 remote_exec() {
     local command="\$1"
     log_message "Executing remotely on \$SSH_HOST: \$command"
-    # Ensure common commands are found on the remote server by setting PATH.
-    # Redirect all output to the log file.
     eval "\$SSH_COMMAND_PREFIX \"source .profile && \$command\"" 2>&1 | tee -a "\$LOG_FILE"
-    local status=\$? # This captures the exit status of the 'tee' command.
+    local status=\$?
     if [ \$status -ne 0 ]; then
         handle_error "Remote command failed (exit code \$status): '\$command'."
     fi
@@ -92,18 +70,39 @@ remote_exec() {
 
 # --- Deployment Functions ---
 
-# Function to stop and remove existing containers on the remote server (host)
+remote_clone_repo() {
+    log_message "Cloning/Updating code on \$SSH_HOST to directory: \$REMOTE_REPO_PATH"
+
+    # Command to check if the deployment directory exists and is a Git repo
+    local CHECK_REPO_CMD="[ -d \"\$REMOTE_REPO_PATH/.git\" ]"
+    
+    # Check if the repo has been cloned before
+    remote_exec "\$CHECK_REPO_CMD"
+    local REPO_EXISTS=\$?
+
+    if [ \$REPO_EXISTS -eq 0 ]; then
+        # If repo exists, perform a shallow pull
+        log_message "Repository exists. Performing shallow pull to update."
+        local PULL_CMD="cd \"\$REMOTE_REPO_PATH\" && git checkout \$TARGET_BRANCH && git pull --depth 1 origin \$TARGET_BRANCH"
+        remote_exec "\$PULL_CMD"
+    else
+        # If repo does not exist, perform a shallow clone
+        log_message "Repository does not exist. Performing shallow clone."
+        # Use \$REMOTE_DEPLOY_BASE here to create the root directory if needed
+        local CLONE_CMD="mkdir -p \"\$REMOTE_DEPLOY_BASE\" && cd \"\$REMOTE_DEPLOY_BASE\" && git clone --depth 1 \"\$CLONE_SOURCE_PATH\" \"\$REPO_DIR_NAME\""
+        remote_exec "\$CLONE_CMD"
+    fi
+}
+
 remote_stop_containers() {
     log_message "Stopping and removing existing containers on \$SSH_HOST using \$CONTAINER_CLI..."
     remote_exec "cd \"\$REMOTE_REPO_PATH\" && \$CONTAINER_CLI compose down --remove-orphans"
 }
 
-# Function to start new containers on the remote server (host)
 remote_start_containers() {
     log_message "Starting the new containers on \$SSH_HOST using \$CONTAINER_CLI..."
     local compose_profiles_args=""
 
-    # Construct the --profile arguments if DEPLOY_PROFILE is set
     if [ -n "\$PROFILE" ]; then
         for profile in \$PROFILE; do
             compose_profiles_args="\$compose_profiles_args --profile \"\$profile\""
@@ -124,13 +123,13 @@ log_message "Post-receive hook execution started."
 while read oldrev newrev ref; do
     log_message "Received push event for ref: '\$ref' (old: '\$oldrev', new: '\$newrev')"
 
-    # Check if the updated ref matches the target branch
     if [ "\$ref" = "\$TARGET_BRANCH" ]; then
         log_message "Detected update to the target branch: '\$TARGET_BRANCH'"
 
-        # Perform deployment steps
-        # The code update is handled by the 'git push' to the non-bare repo's volume mount.
-        # We just need to restart the containers.
+        # 1. Clone/Update the code on the remote host
+        remote_clone_repo
+
+        # 2. Restart the containers with the new code
         remote_stop_containers
         remote_start_containers
 
@@ -141,5 +140,4 @@ while read oldrev newrev ref; do
 done
 
 log_message "Post-receive hook execution finished."
-exit 0 # Indicate successful execution of the hook
-
+exit 0

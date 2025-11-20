@@ -1,110 +1,68 @@
-# Gitit: A Lightweight HTTP Git Server for CI/CD
+# Gitit: A Lightweight SSH Git Server for CI/CD
 
-Gitit is an extremely lightweight Docker image designed to serve a non-bare Git
-repository over HTTP. Its primary purpose is to facilitate Continuous
-Integration/Continuous Deployment (CI/CD) workflows through the use of Git
-hooks.
+Gitit is an extremely lightweight Docker image built on Alpine Linux and
+**Dropbear SSH** to serve **bare Git repositories**. Its primary design goal is
+to provide a minimalist, secure endpoint for **Continuous Integration/Continuous
+Deployment (CI/CD)** workflows triggered by Git hooks.
 
-## ✨ Features
+## Features
 
-- **Ultra-Lightweight**: Built with minimal dependencies, ensuring a small
-  footprint and fast startup times.
+- **Protocol:** Securely serves Git over **SSH (Dropbear)** using password
+  authentication.
+- **Ultra-Lightweight:** Built on Alpine Linux with minimal dependencies for a
+  small footprint and fast startup.
+- **Bare Repositories:** Designed to host bare repositories (`repo-name.git`),
+  the standard format for centralized Git remotes.
+- **Automatic Initialization:** Automatically initializes empty directories as
+  bare repositories on startup.
+- **Persistent Identity:** Host keys are externalized for **consistent server
+  identity** across restarts, preventing client errors.
 
-- **Non-Bare Repository Serving**: Serves a standard Git repository, allowing
-  for direct interaction and inspection of the working tree on the server.
+---
 
-- **HTTP Protocol**: Provides access to your repository via the ubiquitous HTTP
-  protocol, simplifying network configuration.
+## Deployment
 
-- **Git Hook Integration**: Designed to integrate seamlessly with Git hooks,
-  enabling automated CI/CD pipelines upon pushes.
+### Prerequisites
 
-## 🚀 Deployment
+- Docker or Podman installed on your system.
+- The **`git`** user requires a strong password set via an environment variable.
 
-**Prerequisites**
+### Running the Container
 
-Before deploying Gitit, ensure you have Docker installed on your system.
-
-**Running the Container**
-
-To deploy Gitit, use the following docker run command:
+Gitit requires volumes for **repository storage** and **SSH host key
+persistence**.
 
 ```sh
 docker run -d \
     --name gitit \
-    -v hooks:/git/default/.git/hooks:ro \
-    -p 8000:80 \
+    -p 8022:22 \
+    -v gitit_repos:/git \
+    -v gitit_keys:/etc/dropbear \
+    -e GIT_PASSWORD=YOUR_SECURE_PASSWORD \
     ghcr.io/azamaulanaaa/gitit
 ```
 
-**Explanation of the command**:
+## Usage
 
-- `-d`: Runs the container in detached mode (in the background).
+The repository user is always **`git`**. All repositories are accessed via the
+path `/git/<repo-name.git>`.
 
-- `--name gitit`: Assigns the name gitit to your container, making it easier to
-  reference.
+### Cloning a New Repository
 
-- `-v hooks:/git/default/.git/hooks:ro`: This is a crucial volume mount.
-
-  - `hooks`: This refers to a Docker named volume (or a host directory if you
-    specify a full path like `/path/to/your/hooks`). This volume should contain
-    your custom Git hooks (e.g., post-receive, pre-receive) that you want to
-    execute on the server.
-
-  - `/git/default/.git/hooks`: This is the target directory inside the container
-    where Git expects to find its hooks.
-
-  - `:ro`: Mounts the volume as read-only, preventing the container from
-    modifying your hook scripts directly.
-
-- `-p 8000:80`: Maps port 8000 on your host machine to port 80 inside the
-  container. This means you will access the Gitit server via port 8000.
-
-- `ghcr.io/azamaulanaaa/gitit`: The Docker image to pull and run.
-
-## 💡 Usage
-
-Once the Gitit container is running, you can interact with your repository using
-standard Git commands. The repository is served at
-http://<Your_Host_IP_Address>:8000/cgi-bin/git/default.git.
-
-**Cloning the Repository**
-
-To clone the repository:
+To clone a repository named `my-project.git`:
 
 ```sh
-git clone http://<Your_Host_IP_Address>:8000/default.git
+git clone ssh://git@<Your_Host_IP_Address>:8022/git/my-project.git
 ```
 
-Replace `<Your_Host_IP_Address>` with the actual IP address or hostname of the
-machine running the Docker container.
+### Pushing Changes
 
-**Pushing Changes**
-
-To add Gitit as a remote and push your changes:
+To push changes to the server:
 
 ```sh
-git remote add gitit http://<Your_Host_IP_Address>:8000/default.git
-git push gitit main # Or your desired branch, e.g., 'master'
+# 1. Add Gitit as a remote
+git remote add gitit ssh://git@<Your_Host_IP_Address>:8022/git/my-project.git
+
+# 2. Push the changes (you will be prompted for the GIT_PASSWORD)
+git push gitit main
 ```
-
-**Configuring Git Hooks**
-
-The power of Gitit lies in its integration with Git hooks. Ensure your hooks
-volume (as specified in the docker run command) contains your executable hook
-scripts.
-
-For example, to run a CI/CD script after every push, you would place a
-post-receive script in your hooks volume:
-
-```sh
-#!/bin/sh
-# Example post-receive hook script
-echo "--- Running post-receive hook ---"
-# Your CI/CD commands go here, e.g.:
-# cd /path/to/your/project && git pull && npm install && npm test && npm run deploy
-echo "--- Post-receive hook finished ---"
-```
-
-Important: Make sure your hook scripts are executable (chmod +x
-your_hook_script).

@@ -12,6 +12,7 @@ persistence**.
 ```sh
 nerdctl run -d \
     --name gitit \
+    --add-host host.docker.internal:host-gateway \
     -p 8022:22 \
     -v gitit_repos:/git \
     -v gitit_keys:/etc/dropbear \

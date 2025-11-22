@@ -2,4 +2,4 @@
 
 /usr/local/bin/setup.sh
 
-exec "\$@"
+exec "$@"

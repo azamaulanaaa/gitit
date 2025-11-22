@@ -17,4 +17,7 @@ find "${REPO_ROOT}" -mindepth 1 -maxdepth 1 -type d | while read REPO_PATH; do
     echo "Hook setup complete for '$REPO_NAME'"
 done
 
+env | grep -vE "^(HOME|PWD|SHLVL|_|PATH)" > /etc/gitit.env
+chmod 644 /etc/gitit.env
+
 exec "$@"

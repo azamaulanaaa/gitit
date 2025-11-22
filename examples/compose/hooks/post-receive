@@ -6,6 +6,12 @@
 #              the remote host using SSH and then triggers a deployment restart.
 # ------------------------------------------------------------------------------
 
+if [ -f /etc/gitit.env ]; then
+    set -a
+    . /etc/gitit.env
+    set +a
+fi
+
 # --- Configuration ---
 # Target branch for deployments.
 TARGET_BRANCH="refs/heads/main"

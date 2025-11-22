@@ -5,7 +5,7 @@ RUN apk add --no-cache \
   dropbear 
 
 RUN adduser -D git
-RUN mkdir -p /git && chown git:git /git
+RUN mkdir -p /git
 
 # Copy the setup script
 COPY setup.sh /usr/local/bin/setup.sh

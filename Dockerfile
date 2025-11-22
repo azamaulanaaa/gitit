@@ -17,8 +17,6 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Set the entrypoint to our script
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
-WORKDIR /git
 EXPOSE 22
 
 CMD ["/usr/sbin/dropbear", "-F", "-E", "-p", "22"]

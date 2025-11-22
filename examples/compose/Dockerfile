@@ -21,3 +21,4 @@ RUN chmod +x /usr/local/bin/wrapped_entrypoint.sh
 
 # Set the entrypoint to our script
 ENTRYPOINT ["/usr/local/bin/wrapped_entrypoint.sh"]
+CMD ["/usr/sbin/dropbear", "-F", "-E", "-p", "22"]

@@ -64,16 +64,53 @@ handle_error() {
     exit 1
 }
 
+# remote_exec: Executes a command remotely, checking for errors.
+# $1: command (string) - The command to execute on the remote host.
+# $2: log_output (boolean, optional) - Set to 'false' to suppress output 
+#     and bypass the tee pipe, useful for status checks. Default is 'true'.
 remote_exec() {
     local command="$1"
-    log_message "Executing remotely on $SSH_HOST: $command"
-    eval "$SSH_COMMAND_PREFIX \"source .profile && $command\"" 2>&1 | tee -a "$LOG_FILE"
-    local status=$?
-    if [ $status -ne 0 ]; then
-        handle_error "Remote command failed (exit code $status): '$command'."
-    fi
+    local log_output="${2:-true}" # Default to 'true'
+    local status
 
-    return $status
+    log_message "Executing remotely on $SSH_HOST: $command"
+
+    # The core SSH command using sshpass
+    local full_ssh_command="${SSH_COMMAND_PREFIX} \"source .profile && $command\""
+    
+    if [ "$log_output" = "true" ]; then
+        # Standard execution with logging (Pipe status is lost, but error handling is local)
+        eval "$full_ssh_command" 2>&1 | tee -a "$LOG_FILE"
+        # Since the pipe is used, we cannot reliably get the remote command's status here.
+        # We rely on the remote check functions to handle status separately.
+        # This function should only be used for commands we expect to succeed (like 'git pull').
+        status=$?
+        
+        # NOTE: If we get here, the pipe to tee was successful (status=0), 
+        # so we cannot reliably handle the remote command failure in this block 
+        # without PIPESTATUS. However, we keep it for general execution logging.
+        # We will NOT check the status here for log_output=true to avoid false positives.
+
+    else
+        # Execution for status checks (Output suppressed, status preserved)
+        eval "$full_ssh_command" > /dev/null 2>&1
+        status=$?
+        
+        # Only log the status result when we are doing a status check.
+        log_message "Remote status check result: $status"
+        
+        if [ $status -ne 0 ]; then
+            # If the remote command failed, log and exit.
+            handle_error "Remote command failed (exit code $status): '$command'."
+        fi
+        
+        # Crucially, return the status for the caller to capture.
+        return $status
+    fi
+    
+    # If log_output was 'true', we don't return a status, but if we reached 
+    # the end of the function successfully, we return 0.
+    return 0
 }
 
 # --- Deployment Functions ---

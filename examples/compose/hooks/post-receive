@@ -72,6 +72,8 @@ remote_exec() {
     if [ $status -ne 0 ]; then
         handle_error "Remote command failed (exit code $status): '$command'."
     fi
+
+    return $status
 }
 
 # --- Deployment Functions ---

@@ -96,14 +96,6 @@ remote_exec() {
         eval "$full_ssh_command" > /dev/null 2>&1
         status=$?
         
-        # Only log the status result when we are doing a status check.
-        log_message "Remote status check result: $status"
-        
-        if [ $status -ne 0 ]; then
-            # If the remote command failed, log and exit.
-            handle_error "Remote command failed (exit code $status): '$command'."
-        fi
-        
         # Crucially, return the status for the caller to capture.
         return $status
     fi

@@ -122,7 +122,7 @@ remote_clone_repo() {
     local CHECK_REPO_CMD="[ -d \"$REMOTE_REPO_PATH/.git\" ]"
     
     # Check if the repo has been cloned before
-    remote_exec "$CHECK_REPO_CMD"
+    remote_exec "$CHECK_REPO_CMD" false
     local REPO_EXISTS=$?
 
     if [ $REPO_EXISTS -eq 0 ]; then

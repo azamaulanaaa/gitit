@@ -41,6 +41,8 @@ REPO_DIR_NAME=$(basename "$REPO_PATH" .git)
 # Example: $REMOTE_DEPLOY_BASE/myproject (e.g., /deploy/myproject)
 REMOTE_REPO_PATH="${REMOTE_DEPLOY_BASE}/${REPO_DIR_NAME}"
 
+LOCAL_TEMP_DIR="/tmp/${REPO_DIR_NAME}-deploy"
+
 # The source path for the clone is the container's *own* bare repo path.
 CLONE_SOURCE_PATH="$REPO_PATH"
 
@@ -106,29 +108,68 @@ remote_exec() {
 }
 
 # --- Deployment Functions ---
+#
+local_checkout_and_scp() {
+    log_message "Starting local checkout and SCP recursive transfer to $SSH_HOST:${REMOTE_REPO_PATH}"
 
-remote_clone_repo() {
-    log_message "Cloning/Updating code on $SSH_HOST to directory: $REMOTE_REPO_PATH"
-
-    # Command to check if the deployment directory exists and is a Git repo
-    local CHECK_REPO_CMD="[ -d \"$REMOTE_REPO_PATH/.git\" ]"
-    
-    # Check if the repo has been cloned before
-    remote_exec "$CHECK_REPO_CMD" false
-    local REPO_EXISTS=$?
-
-    if [ $REPO_EXISTS -eq 0 ]; then
-        # If repo exists, perform a shallow pull
-        log_message "Repository exists. Performing shallow pull to update."
-        local PULL_CMD="cd \"$REMOTE_REPO_PATH\" && git checkout $TARGET_BRANCH && git pull --depth 1 origin $TARGET_BRANCH"
-        remote_exec "$PULL_CMD"
+    # 1. Prepare Local Environment (Clone/Update)
+    if [ -d "$LOCAL_TEMP_DIR" ]; then
+        log_message "Temporary directory exists. Fetching and hard-resetting latest code."
+        # Use git fetch and reset --hard for a fast, clean update.
+        ( cd "$LOCAL_TEMP_DIR" && git fetch origin $TARGET_BRANCH && git reset --hard FETCH_HEAD ) || handle_error "Local git fetch/reset failed."
     else
-        # If repo does not exist, perform a shallow clone
-        log_message "Repository does not exist. Performing shallow clone."
-        # Use $REMOTE_DEPLOY_BASE here to create the root directory if needed
-        local CLONE_CMD="mkdir -p \"$REMOTE_DEPLOY_BASE\" && cd \"$REMOTE_DEPLOY_BASE\" && git clone --depth 1 \"$CLONE_SOURCE_PATH\" \"$REPO_DIR_NAME\""
-        remote_exec "$CLONE_CMD"
+        log_message "Temporary directory does not exist. Performing local clone."
+        # Create a new local working copy from the bare repo
+        mkdir -p "$LOCAL_TEMP_DIR"
+        # Clone the bare repo's contents to the temporary working directory
+        git clone --bare="$REPO_PATH" "$REPO_PATH" "$LOCAL_TEMP_DIR" || handle_error "Local git clone failed."
     fi
+
+    # 2. Prepare Remote Environment
+    log_message "Ensuring deployment directory $REMOTE_REPO_PATH exists on remote host."
+    remote_exec "mkdir -p \"$REMOTE_REPO_PATH\""
+    
+    # Optional: Clear the remote deployment directory before copy 
+    # This prevents old, deleted files from remaining on the remote host.
+    log_message "Cleaning existing remote deployment directory."
+    remote_exec "rm -rf \"$REMOTE_REPO_PATH\"/*"
+    remote_exec "rm -rf \"$REMOTE_REPO_PATH\"/.* 2>/dev/null || true"
+
+
+    # 3. SCP Recursive Transfer
+    log_message "Transferring code via SCP (full copy)..."
+    
+    # SCP flags:
+    # -r: recursive copy (required for directories)
+    # The source path "$LOCAL_TEMP_DIR/*" copies the *contents* (excluding hidden files).
+    # Hidden files like .gitignore, .env etc. must be copied separately if needed.
+    # To copy all files including hidden ones, we need a slightly complex copy strategy:
+    
+    # First, copy regular files (excluding .git)
+    sshpass -p "$SSH_PASSWORD" scp -r -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        "$LOCAL_TEMP_DIR"/* "$SSH_USER@$SSH_HOST:$REMOTE_REPO_PATH" 2>&1 | tee -a "$LOG_FILE"
+    
+    local status=$?
+    
+    # Second, copy hidden files and directories (excluding . and ..)
+    # Note: scp handles the final destination folder creation if it copies a full directory.
+    # Since we are copying CONTENTS, we need to handle hidden files manually or rely on `rsync`.
+    # Sticking to the simplest: copy the entire temporary directory contents.
+    
+    # Let's revert to a simpler SCP that copies the entire directory, and the remote mkdir will be sufficient:
+    log_message "Copying directory contents: $LOCAL_TEMP_DIR to $REMOTE_REPO_PATH"
+    
+    # Use -r to copy recursively, and the trailing slash on the source to copy contents.
+    sshpass -p "$SSH_PASSWORD" scp -r -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        "$LOCAL_TEMP_DIR"/ "$SSH_USER@$SSH_HOST:$REMOTE_REPO_PATH" 2>&1 | tee -a "$LOG_FILE"
+    
+    status=$?
+    
+    if [ $status -ne 0 ]; then
+        handle_error "SCP transfer failed (exit code $status)."
+    fi
+
+    log_message "SCP transfer successful."
 }
 
 remote_stop_containers() {
